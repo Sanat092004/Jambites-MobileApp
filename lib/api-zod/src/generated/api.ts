@@ -14,3 +14,175 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * @summary Get nearby vendors
+ */
+export const GetNearbyVendorsResponseItem = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  description: zod.string(),
+  rating: zod.number(),
+  deliveryTimeMin: zod.number(),
+  deliveryFee: zod.number(),
+  distance: zod.number(),
+  isOpen: zod.boolean(),
+  category: zod.string(),
+  imageUrl: zod.string().optional(),
+});
+export const GetNearbyVendorsResponse = zod.array(GetNearbyVendorsResponseItem);
+
+/**
+ * @summary Get vendor menu
+ */
+export const GetVendorMenuParams = zod.object({
+  vendorId: zod.coerce.string(),
+});
+
+export const GetVendorMenuResponse = zod.object({
+  vendor: zod.object({
+    id: zod.string(),
+    name: zod.string(),
+    description: zod.string(),
+    rating: zod.number(),
+    deliveryTimeMin: zod.number(),
+    deliveryFee: zod.number(),
+    distance: zod.number(),
+    isOpen: zod.boolean(),
+    category: zod.string(),
+    imageUrl: zod.string().optional(),
+  }),
+  sections: zod.array(
+    zod.object({
+      title: zod.string(),
+      items: zod.array(
+        zod.object({
+          id: zod.string(),
+          name: zod.string(),
+          description: zod.string(),
+          price: zod.number(),
+          category: zod.string(),
+          isVeg: zod.boolean(),
+          isBestseller: zod.boolean(),
+          imageUrl: zod.string().optional(),
+        }),
+      ),
+    }),
+  ),
+});
+
+/**
+ * @summary Place a new order
+ */
+export const PlaceOrderBody = zod.object({
+  vendorId: zod.string(),
+  items: zod.array(
+    zod.object({
+      menuItemId: zod.string(),
+      quantity: zod.number(),
+    }),
+  ),
+  deliveryLat: zod.number(),
+  deliveryLng: zod.number(),
+  landmark: zod.string().optional(),
+  carNumber: zod.string(),
+  paymentMethod: zod.string(),
+});
+
+/**
+ * @summary Get order status
+ */
+export const GetOrderParams = zod.object({
+  orderId: zod.coerce.string(),
+});
+
+export const GetOrderResponse = zod.object({
+  id: zod.string(),
+  status: zod.string(),
+  vendorId: zod.string(),
+  vendorName: zod.string(),
+  estimatedMinutes: zod.number(),
+  totalAmount: zod.number(),
+  riderName: zod.string().optional(),
+  riderPhone: zod.string().optional(),
+  riderLat: zod.number().optional(),
+  riderLng: zod.number().optional(),
+  createdAt: zod.date(),
+});
+
+/**
+ * @summary List all conversations
+ */
+export const ListAnthropicConversationsResponseItem = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  createdAt: zod.date(),
+});
+export const ListAnthropicConversationsResponse = zod.array(
+  ListAnthropicConversationsResponseItem,
+);
+
+/**
+ * @summary Create a new conversation
+ */
+export const CreateAnthropicConversationBody = zod.object({
+  title: zod.string(),
+});
+
+/**
+ * @summary Get conversation with messages
+ */
+export const GetAnthropicConversationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetAnthropicConversationResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  createdAt: zod.date(),
+  messages: zod.array(
+    zod.object({
+      id: zod.number(),
+      conversationId: zod.number(),
+      role: zod.string(),
+      content: zod.string(),
+      createdAt: zod.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Delete a conversation
+ */
+export const DeleteAnthropicConversationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary List messages in a conversation
+ */
+export const ListAnthropicMessagesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListAnthropicMessagesResponseItem = zod.object({
+  id: zod.number(),
+  conversationId: zod.number(),
+  role: zod.string(),
+  content: zod.string(),
+  createdAt: zod.date(),
+});
+export const ListAnthropicMessagesResponse = zod.array(
+  ListAnthropicMessagesResponseItem,
+);
+
+/**
+ * @summary Send a message and receive an AI response (SSE stream)
+ */
+export const SendAnthropicMessageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SendAnthropicMessageBody = zod.object({
+  content: zod.string(),
+});

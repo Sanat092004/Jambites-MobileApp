@@ -8,3 +8,99 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface Vendor {
+  id: string;
+  name: string;
+  description: string;
+  rating: number;
+  deliveryTimeMin: number;
+  deliveryFee: number;
+  distance: number;
+  isOpen: boolean;
+  category: string;
+  imageUrl?: string;
+}
+
+export interface MenuItem {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  category: string;
+  isVeg: boolean;
+  isBestseller: boolean;
+  imageUrl?: string;
+}
+
+export interface MenuSection {
+  title: string;
+  items: MenuItem[];
+}
+
+export interface VendorMenu {
+  vendor: Vendor;
+  sections: MenuSection[];
+}
+
+export interface CartItem {
+  menuItemId: string;
+  quantity: number;
+}
+
+export interface PlaceOrderBody {
+  vendorId: string;
+  items: CartItem[];
+  deliveryLat: number;
+  deliveryLng: number;
+  landmark?: string;
+  carNumber: string;
+  paymentMethod: string;
+}
+
+export interface Order {
+  id: string;
+  status: string;
+  vendorId: string;
+  vendorName: string;
+  estimatedMinutes: number;
+  totalAmount: number;
+  riderName?: string;
+  riderPhone?: string;
+  riderLat?: number;
+  riderLng?: number;
+  createdAt: string;
+}
+
+export interface AnthropicConversation {
+  id: number;
+  title: string;
+  createdAt: string;
+}
+
+export interface AnthropicMessage {
+  id: number;
+  conversationId: number;
+  role: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface CreateAnthropicConversationBody {
+  title: string;
+}
+
+export interface SendAnthropicMessageBody {
+  content: string;
+}
+
+export interface AnthropicConversationWithMessages {
+  id: number;
+  title: string;
+  createdAt: string;
+  messages: AnthropicMessage[];
+}
+
+export interface AnthropicError {
+  error: string;
+}

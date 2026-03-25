@@ -6,4 +6,17 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./anthropicConversation";
+export * from "./anthropicConversationWithMessages";
+export * from "./anthropicError";
+export * from "./anthropicMessage";
+export * from "./cartItem";
+export * from "./createAnthropicConversationBody";
 export * from "./healthStatus";
+export * from "./menuItem";
+export * from "./menuSection";
+export * from "./order";
+export * from "./placeOrderBody";
+export * from "./sendAnthropicMessageBody";
+export * from "./vendor";
+export * from "./vendorMenu";

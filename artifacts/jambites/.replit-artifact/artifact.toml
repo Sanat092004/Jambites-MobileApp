@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "Jambites"
+version = "1.0.0"
+id = "artifacts/jambites"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/" ]
+localPort = 23743
+
+[services.development]
+run = "pnpm --filter @workspace/jambites run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/jambites", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/jambites", "run", "serve" ]
+
+[services.env]
+PORT = "23743"
+BASE_PATH = "/"

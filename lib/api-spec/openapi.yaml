@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: jambites
+    description: Jambites food delivery operations
+  - name: anthropic
+    description: Anthropic AI chat operations
 paths:
   /healthz:
     get:
@@ -24,6 +28,189 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /jambites/vendors:
+    get:
+      operationId: getNearbyVendors
+      tags: [jambites]
+      summary: Get nearby vendors
+      responses:
+        "200":
+          description: List of vendors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Vendor"
+  /jambites/vendors/{vendorId}/menu:
+    get:
+      operationId: getVendorMenu
+      tags: [jambites]
+      summary: Get vendor menu
+      parameters:
+        - name: vendorId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Vendor menu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorMenu"
+  /jambites/orders:
+    post:
+      operationId: placeOrder
+      tags: [jambites]
+      summary: Place a new order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaceOrderBody"
+      responses:
+        "201":
+          description: Order placed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+  /jambites/orders/{orderId}:
+    get:
+      operationId: getOrder
+      tags: [jambites]
+      summary: Get order status
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+  /anthropic/conversations:
+    get:
+      operationId: listAnthropicConversations
+      tags: [anthropic]
+      summary: List all conversations
+      responses:
+        "200":
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AnthropicConversation"
+    post:
+      operationId: createAnthropicConversation
+      tags: [anthropic]
+      summary: Create a new conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAnthropicConversationBody"
+      responses:
+        "201":
+          description: Created conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnthropicConversation"
+  /anthropic/conversations/{id}:
+    get:
+      operationId: getAnthropicConversation
+      tags: [anthropic]
+      summary: Get conversation with messages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Conversation with messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnthropicConversationWithMessages"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnthropicError"
+    delete:
+      operationId: deleteAnthropicConversation
+      tags: [anthropic]
+      summary: Delete a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnthropicError"
+  /anthropic/conversations/{id}/messages:
+    get:
+      operationId: listAnthropicMessages
+      tags: [anthropic]
+      summary: List messages in a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AnthropicMessage"
+    post:
+      operationId: sendAnthropicMessage
+      tags: [anthropic]
+      summary: Send a message and receive an AI response (SSE stream)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendAnthropicMessageBody"
+      responses:
+        "200":
+          description: SSE stream of assistant response chunks
+          content:
+            text/event-stream: {}
 components:
   schemas:
     HealthStatus:
@@ -33,4 +220,231 @@ components:
           type: string
       required:
         - status
-
+    Vendor:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        rating:
+          type: number
+        deliveryTimeMin:
+          type: integer
+        deliveryFee:
+          type: number
+        distance:
+          type: number
+        isOpen:
+          type: boolean
+        category:
+          type: string
+        imageUrl:
+          type: string
+      required:
+        - id
+        - name
+        - description
+        - rating
+        - deliveryTimeMin
+        - deliveryFee
+        - distance
+        - isOpen
+        - category
+    MenuItem:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        category:
+          type: string
+        isVeg:
+          type: boolean
+        isBestseller:
+          type: boolean
+        imageUrl:
+          type: string
+      required:
+        - id
+        - name
+        - description
+        - price
+        - category
+        - isVeg
+        - isBestseller
+    MenuSection:
+      type: object
+      properties:
+        title:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MenuItem"
+      required:
+        - title
+        - items
+    VendorMenu:
+      type: object
+      properties:
+        vendor:
+          $ref: "#/components/schemas/Vendor"
+        sections:
+          type: array
+          items:
+            $ref: "#/components/schemas/MenuSection"
+      required:
+        - vendor
+        - sections
+    CartItem:
+      type: object
+      properties:
+        menuItemId:
+          type: string
+        quantity:
+          type: integer
+      required:
+        - menuItemId
+        - quantity
+    PlaceOrderBody:
+      type: object
+      properties:
+        vendorId:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CartItem"
+        deliveryLat:
+          type: number
+        deliveryLng:
+          type: number
+        landmark:
+          type: string
+        carNumber:
+          type: string
+        paymentMethod:
+          type: string
+      required:
+        - vendorId
+        - items
+        - deliveryLat
+        - deliveryLng
+        - carNumber
+        - paymentMethod
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        vendorId:
+          type: string
+        vendorName:
+          type: string
+        estimatedMinutes:
+          type: integer
+        totalAmount:
+          type: number
+        riderName:
+          type: string
+        riderPhone:
+          type: string
+        riderLat:
+          type: number
+        riderLng:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - status
+        - vendorId
+        - vendorName
+        - estimatedMinutes
+        - totalAmount
+        - createdAt
+    AnthropicConversation:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - createdAt
+    AnthropicMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        conversationId:
+          type: integer
+        role:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - conversationId
+        - role
+        - content
+        - createdAt
+    CreateAnthropicConversationBody:
+      type: object
+      properties:
+        title:
+          type: string
+      required:
+        - title
+    SendAnthropicMessageBody:
+      type: object
+      properties:
+        content:
+          type: string
+      required:
+        - content
+    AnthropicConversationWithMessages:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnthropicMessage"
+      required:
+        - id
+        - title
+        - createdAt
+        - messages
+    AnthropicError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
