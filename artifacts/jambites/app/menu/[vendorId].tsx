@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -25,10 +25,12 @@ import {
   Coffee,
   Pill,
   AlertCircle,
+  Sparkles,
 } from "lucide-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
+import { fetch } from "expo/fetch";
 
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
@@ -61,11 +63,36 @@ type VendorMenu = {
   sections: MenuSection[];
 };
 
+type AIRec = { name: string; reason: string; item: MenuItem };
+
 async function fetchMenu(vendorId: string): Promise<VendorMenu> {
   const url = getApiUrl();
   const res = await fetch(`${url}api/jambites/vendors/${vendorId}/menu`);
   if (!res.ok) throw new Error("Failed");
   return res.json();
+}
+
+async function fetchAIRecommendations(items: MenuItem[]): Promise<AIRec[]> {
+  try {
+    const url = getApiUrl();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+
+    const res = await fetch(`${url}api/anthropic/menu-recommendations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: items.map((i) => ({ name: i.name, price: i.price, category: i.category })),
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return [];
+    const data = (await res.json()) as { recommendations: AIRec[] };
+    return data.recommendations || [];
+  } catch {
+    return [];
+  }
 }
 
 function VegDot({ isVeg }: { isVeg: boolean }) {
@@ -81,6 +108,57 @@ function MenuItemIcon({ category, isVeg }: { category: string; isVeg: boolean })
   if (category === "Medicines") return <Pill size={28} color="#6366F1" />;
   if (category === "Drinks") return <Coffee size={28} color={color} />;
   return <Utensils size={28} color={color} />;
+}
+
+function AIRecommendationCard({ rec, vendorId, vendorName }: { rec: AIRec; vendorId: string; vendorName: string }) {
+  const { items: cartItems, addItem, removeItem } = useCart();
+  const cartItem = cartItems.find((i) => i.id === rec.item.id);
+  const qty = cartItem?.quantity || 0;
+
+  const handleAdd = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    addItem({ id: rec.item.id, name: rec.item.name, price: rec.item.price, isVeg: rec.item.isVeg, vendorId, vendorName });
+  }, [rec.item, vendorId, vendorName, addItem]);
+
+  const handleRemove = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    removeItem(rec.item.id);
+  }, [rec.item.id, removeItem]);
+
+  const bgColor = rec.item.category === "Medicines" ? "#EEF2FF" : rec.item.isVeg ? "#F0FDF4" : "#FFF5F5";
+
+  return (
+    <View style={styles.aiCard}>
+      <View style={styles.aiPickBadge}>
+        <Sparkles size={10} color="#FFF" />
+        <Text style={styles.aiPickText}>AI Pick</Text>
+      </View>
+      <View style={[styles.aiCardImage, { backgroundColor: bgColor }]}>
+        <MenuItemIcon category={rec.item.category} isVeg={rec.item.isVeg} />
+      </View>
+      <Text style={styles.aiCardName} numberOfLines={2}>{rec.item.name}</Text>
+      <View style={styles.aiReasonBadge}>
+        <Text style={styles.aiReasonText}>{rec.reason}</Text>
+      </View>
+      <Text style={styles.aiCardPrice}>₹{rec.item.price}</Text>
+      {qty === 0 ? (
+        <TouchableOpacity style={styles.aiAddBtn} onPress={handleAdd}>
+          <Plus size={14} color={C.orange} />
+          <Text style={styles.aiAddBtnText}>ADD</Text>
+        </TouchableOpacity>
+      ) : (
+        <View style={styles.aiQtyControl}>
+          <TouchableOpacity style={styles.qtyBtn} onPress={handleRemove}>
+            <Minus size={12} color={C.orange} />
+          </TouchableOpacity>
+          <Text style={styles.qtyText}>{qty}</Text>
+          <TouchableOpacity style={styles.qtyBtn} onPress={handleAdd}>
+            <Plus size={12} color={C.orange} />
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
 }
 
 function MenuItemCard({ item, vendorId, vendorName }: { item: MenuItem; vendorId: string; vendorName: string }) {
@@ -144,6 +222,8 @@ export default function MenuScreen() {
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("");
+  const [aiRecs, setAiRecs] = useState<AIRec[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
   const sectionListRef = useRef<SectionList>(null);
   const { totalItems, totalPrice } = useCart();
 
@@ -152,6 +232,16 @@ export default function MenuScreen() {
     queryFn: () => fetchMenu(vendorId),
     enabled: !!vendorId,
   });
+
+  useEffect(() => {
+    if (!data) return;
+    const allItems = data.sections.flatMap((s) => s.items);
+    setAiLoading(true);
+    fetchAIRecommendations(allItems).then((recs) => {
+      setAiRecs(recs);
+      setAiLoading(false);
+    });
+  }, [data]);
 
   const filtered = searchQuery
     ? data?.sections.map((s) => ({
@@ -238,23 +328,6 @@ export default function MenuScreen() {
         )}
       </View>
 
-      {categories.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryTabsRow}>
-          {categories.map((cat, idx) => (
-            <TouchableOpacity
-              key={cat}
-              style={[styles.catTab, activeCategory === cat && styles.catTabActive]}
-              onPress={() => {
-                setActiveCategory(cat);
-                sectionListRef.current?.scrollToLocation({ sectionIndex: idx, itemIndex: 0, animated: true, viewOffset: 0 });
-              }}
-            >
-              <Text style={[styles.catTabText, activeCategory === cat && styles.catTabTextActive]}>{cat}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
-
       <SectionList
         ref={sectionListRef}
         sections={sectionData}
@@ -268,8 +341,48 @@ export default function MenuScreen() {
             <Text style={styles.sectionCount}>{items.length} items</Text>
           </View>
         )}
+        ListHeaderComponent={
+          <>
+            {(aiLoading || aiRecs.length > 0) && !searchQuery && (
+              <View style={styles.aiSection}>
+                <View style={styles.aiSectionHeader}>
+                  <Sparkles size={16} color={C.orange} />
+                  <Text style={styles.aiSectionTitle}>Recommended for You</Text>
+                </View>
+                {aiLoading ? (
+                  <View style={styles.aiLoadingRow}>
+                    <ActivityIndicator color={C.orange} size="small" />
+                    <Text style={styles.aiLoadingText}>Getting AI picks...</Text>
+                  </View>
+                ) : (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.aiCardsList}>
+                    {aiRecs.map((rec, i) => (
+                      <AIRecommendationCard key={i} rec={rec} vendorId={vendorId} vendorName={data.vendor.name} />
+                    ))}
+                  </ScrollView>
+                )}
+              </View>
+            )}
+            {categories.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryTabsRow}>
+                {categories.map((cat, idx) => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[styles.catTab, activeCategory === cat && styles.catTabActive]}
+                    onPress={() => {
+                      setActiveCategory(cat);
+                      sectionListRef.current?.scrollToLocation({ sectionIndex: idx, itemIndex: 0, animated: true, viewOffset: 0 });
+                    }}
+                  >
+                    <Text style={[styles.catTabText, activeCategory === cat && styles.catTabTextActive]}>{cat}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </>
+        }
         showsVerticalScrollIndicator={false}
-        stickySectionHeadersEnabled
+        stickySectionHeadersEnabled={false}
         ListEmptyComponent={
           <View style={styles.centered}>
             <Search size={40} color={C.textMuted} />
@@ -303,7 +416,7 @@ export default function MenuScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingVertical: 40 },
   topBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 10, gap: 12, borderBottomWidth: 1, borderBottomColor: C.borderLight },
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.backgroundSecondary, alignItems: "center", justifyContent: "center" },
   vendorHeaderInfo: { flex: 1 },
@@ -313,7 +426,24 @@ const styles = StyleSheet.create({
   metaDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: C.textMuted },
   searchContainer: { flexDirection: "row", alignItems: "center", marginHorizontal: 16, marginVertical: 10, backgroundColor: C.backgroundSecondary, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, gap: 8, borderWidth: 1, borderColor: C.border },
   searchInput: { flex: 1, fontFamily: "Poppins_400Regular", fontSize: 14, color: C.text },
-  categoryTabsRow: { paddingHorizontal: 16, paddingBottom: 10, gap: 8 },
+  aiSection: { marginHorizontal: 0, paddingTop: 14, paddingBottom: 6, backgroundColor: "#FFFBF7", borderBottomWidth: 1, borderBottomColor: C.borderLight },
+  aiSectionHeader: { flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 16, marginBottom: 10 },
+  aiSectionTitle: { fontFamily: "Poppins_600SemiBold", fontSize: 15, color: C.text },
+  aiLoadingRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
+  aiLoadingText: { fontFamily: "Poppins_400Regular", fontSize: 13, color: C.textSecondary },
+  aiCardsList: { paddingHorizontal: 16, gap: 12, paddingBottom: 12 },
+  aiCard: { width: 130, backgroundColor: "#FFF", borderRadius: 16, padding: 12, borderWidth: 1, borderColor: "rgba(232,93,4,0.15)", gap: 6, alignItems: "center", shadowColor: C.shadow, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
+  aiPickBadge: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: C.orange, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 3, alignSelf: "flex-start" },
+  aiPickText: { fontFamily: "Poppins_600SemiBold", fontSize: 10, color: "#FFF" },
+  aiCardImage: { width: 64, height: 64, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  aiCardName: { fontFamily: "Poppins_600SemiBold", fontSize: 13, color: C.text, textAlign: "center" },
+  aiReasonBadge: { backgroundColor: "#FFF7ED", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
+  aiReasonText: { fontFamily: "Poppins_500Medium", fontSize: 11, color: C.orange },
+  aiCardPrice: { fontFamily: "Poppins_700Bold", fontSize: 14, color: C.text },
+  aiAddBtn: { flexDirection: "row", alignItems: "center", gap: 3, borderWidth: 1.5, borderColor: C.orange, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 5 },
+  aiAddBtnText: { fontFamily: "Poppins_700Bold", fontSize: 12, color: C.orange },
+  aiQtyControl: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFF7ED", borderRadius: 8, borderWidth: 1.5, borderColor: C.orange, overflow: "hidden" },
+  categoryTabsRow: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
   catTab: { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 20, backgroundColor: C.backgroundSecondary, borderWidth: 1, borderColor: C.border },
   catTabActive: { backgroundColor: C.orange, borderColor: C.orange },
   catTabText: { fontFamily: "Poppins_500Medium", fontSize: 13, color: C.textSecondary },

@@ -6,31 +6,12 @@ import { eq, asc } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-const JAMMY_SYSTEM_PROMPT = `You are Jammy, the friendly AI assistant for Jambites — a food delivery app that brings snacks, drinks, and medicines directly to your car window when you're stuck in traffic jams in Indian cities.
-
-Your personality:
-- Warm, witty, and traffic-savvy
-- Speak like a helpful friend, not a corporate bot
-- Use light Indian English expressions occasionally (like "yaar", "arre", "no no") to feel local
-- Keep responses concise and mobile-friendly — users are in a car!
-
-Your greeting: "Hey! Stuck in a jam? I've got you. 🍔"
-
-You can help with:
-- Menu recommendations ("What's good for kids?", "Give me something spicy")
-- Order status queries
-- Complaint handling
-- Medicine queries (Crocin, antacids, ORS)
-- Traffic-aware suggestions
-- Payment help (UPI, cards, cash)
-- Reorder shortcuts
-
-Available categories: Snacks, Drinks, Medicines, Combos
-Available vendors: Sharma Ji Ke Samose (samosas, chai), Chai Point Express (teas, coffee), Quick Meds (medicines), Burger Bros (burgers, fries), Healthy Bites (fruits, energy bars)
-
-Delivery is in under 7 minutes. Delivery fee is ₹10-₹20. Available in Delhi, Mumbai, Bengaluru.
-
-Keep responses short (2-4 sentences max). No long lists. Be helpful and fun!`;
+const JAMMY_SYSTEM_PROMPT = `You are Jammy, an upbeat and helpful AI food assistant for Jambites — an app that delivers snacks, drinks, and medicines to people stuck in traffic jams. Keep responses short (2-4 sentences max), friendly, and use 1-2 emojis per message. You know the following vendors are nearby:
+1. Sharma Ji Ke Samose — Snacks (Aloo Samosa ₹15, Paneer Kachori ₹20, Pyaaz Kachori ₹15, Combo Pack ₹55)
+2. Chai Point Express — Drinks (Masala Chai ₹20, Cold Coffee ₹35, Mango Drink ₹30)
+3. Quick Meds — Medicines (ORS Packet ₹25, Paracetamol ₹15, Antacid ₹20)
+4. Burger Bros — Snacks (Mini Fries ₹40, Veg Burger ₹65, Shake ₹55)
+You can recommend items, suggest combos, and tell the user what's available. If asked about order status, say the order is being prepared and will arrive in about 6 minutes. Do not make up items not listed above. Always end with a helpful follow-up question or offer.`;
 
 router.get("/anthropic/conversations", async (req, res) => {
   try {
@@ -156,8 +137,8 @@ router.post("/anthropic/conversations/:id/messages", async (req, res) => {
     let fullResponse = "";
 
     const stream = anthropic.messages.stream({
-      model: "claude-sonnet-4-6",
-      max_tokens: 8192,
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 300,
       system: JAMMY_SYSTEM_PROMPT,
       messages: chatMessages,
     });
@@ -186,6 +167,55 @@ router.post("/anthropic/conversations/:id/messages", async (req, res) => {
     req.log.error({ err }, "Failed to send message");
     res.write(`data: ${JSON.stringify({ error: "Failed to get response" })}\n\n`);
     res.end();
+  }
+});
+
+router.get("/anthropic/jam-message", async (req, res) => {
+  try {
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 60,
+      messages: [{
+        role: "user",
+        content: "Generate a single short, witty, empathetic message (max 12 words) for someone stuck in Delhi traffic at peak hours. Make it feel friendly and slightly funny. Don't use exclamation marks. Examples of tone: \"Looks like the road decided to take a nap today\" or \"Traffic's bad but your snacks don't have to wait\". Return only the message text, nothing else.",
+      }],
+    });
+    const text = message.content[0].type === "text" ? message.content[0].text.trim() : null;
+    res.json({ message: text });
+  } catch (err) {
+    req.log.error({ err }, "Failed to generate jam message");
+    res.status(500).json({ error: "Failed" });
+  }
+});
+
+router.post("/anthropic/menu-recommendations", async (req, res) => {
+  try {
+    const { items } = req.body as { items: { name: string; price: number; category: string }[] };
+    if (!items || items.length === 0) {
+      res.status(400).json({ error: "No items provided" });
+      return;
+    }
+    const itemList = items.map((i) => `${i.name} (₹${i.price}, ${i.category})`).join(", ");
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 200,
+      messages: [{
+        role: "user",
+        content: `A user is stuck in traffic in Delhi at 4:30 PM. They previously ordered Aloo Samosa and Paneer Kachori. From the following menu items: ${itemList}, return a JSON array of the top 3 recommended item names with a one-word reason each. Format: [{"name": "item name", "reason": "one word reason"}]. Return only the JSON array, nothing else.`,
+      }],
+    });
+    const text = message.content[0].type === "text" ? message.content[0].text.trim() : "[]";
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+    const recommendations = parsed.slice(0, 3).map((r: { name: string; reason: string }) => ({
+      name: r.name,
+      reason: r.reason,
+      item: items.find((i) => i.name.toLowerCase().includes(r.name.toLowerCase()) || r.name.toLowerCase().includes(i.name.toLowerCase())),
+    })).filter((r: { item: unknown }) => r.item);
+    res.json({ recommendations });
+  } catch (err) {
+    req.log.error({ err }, "Failed to generate recommendations");
+    res.status(500).json({ error: "Failed" });
   }
 });
 

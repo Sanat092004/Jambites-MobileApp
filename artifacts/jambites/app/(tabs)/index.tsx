@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Platform,
   Pressable,
   ActivityIndicator,
+  Animated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -27,6 +28,7 @@ import {
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
+import { fetch } from "expo/fetch";
 
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
@@ -55,6 +57,7 @@ const CATEGORIES = [
 ] as const;
 
 const CITY_OPTIONS = ["Delhi", "Mumbai", "Bengaluru"];
+const FALLBACK_JAM_MSG = "Traffic's bad but your snacks don't have to wait";
 
 async function fetchVendors(): Promise<Vendor[]> {
   const url = getApiUrl();
@@ -63,8 +66,20 @@ async function fetchVendors(): Promise<Vendor[]> {
   return res.json();
 }
 
+async function fetchJamMessage(): Promise<string> {
+  try {
+    const url = getApiUrl();
+    const res = await fetch(`${url}api/anthropic/jam-message`);
+    if (!res.ok) return FALLBACK_JAM_MSG;
+    const data = (await res.json()) as { message: string | null };
+    return data.message || FALLBACK_JAM_MSG;
+  } catch {
+    return FALLBACK_JAM_MSG;
+  }
+}
+
 function CategoryIcon({ id, color }: { id: string; color: string }) {
-  const size = 18;
+  const size = 17;
   if (id === "Snacks") return <Cookie size={size} color={color} />;
   if (id === "Drinks") return <Coffee size={size} color={color} />;
   if (id === "Medicines") return <Pill size={size} color={color} />;
@@ -73,25 +88,24 @@ function CategoryIcon({ id, color }: { id: string; color: string }) {
 }
 
 function VendorIcon({ category }: { category: string }) {
-  const size = 32;
+  const size = 30;
   if (category === "Medicines") return <Pill size={size} color="#6366F1" />;
   if (category === "Drinks") return <Coffee size={size} color="#2563EB" />;
   return <Utensils size={size} color={C.orange} />;
 }
 
-function CategoryPill({ id, label, selected, onPress }: { id: string; label: string; selected: boolean; onPress: () => void }) {
-  const iconColor = selected ? "#FFF" : C.orange;
+function ShimmerText({ width }: { width: number }) {
+  const anim = React.useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 0, duration: 900, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
   return (
-    <TouchableOpacity
-      style={[styles.categoryPill, selected && styles.categoryPillSelected]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <CategoryIcon id={id} color={iconColor} />
-      <Text style={[styles.categoryLabel, selected && styles.categoryLabelSelected]}>
-        {label}
-      </Text>
-    </TouchableOpacity>
+    <Animated.View style={{ width, height: 14, borderRadius: 7, backgroundColor: "rgba(255,255,255,0.35)", opacity: anim }} />
   );
 }
 
@@ -140,9 +154,7 @@ function VendorCard({ vendor }: { vendor: Vendor }) {
           </View>
           <View style={styles.vendorBottomRow}>
             <View style={[styles.categoryBadge, { backgroundColor: categoryColor }]}>
-              <Text style={[styles.categoryBadgeText, { color: categoryTextColor }]}>
-                {vendor.category}
-              </Text>
+              <Text style={[styles.categoryBadgeText, { color: categoryTextColor }]}>{vendor.category}</Text>
             </View>
             <Text style={styles.deliveryFee}>₹{vendor.deliveryFee} delivery</Text>
           </View>
@@ -158,8 +170,16 @@ export default function HomeScreen() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedCity, setSelectedCity] = useState("Delhi");
   const [cityDropdownOpen, setCityDropdownOpen] = useState(false);
-  const [jamDetected] = useState(true);
+  const [jamMsg, setJamMsg] = useState<string | null>(null);
+  const [jamMsgLoading, setJamMsgLoading] = useState(true);
   const { totalItems, totalPrice } = useCart();
+
+  useEffect(() => {
+    fetchJamMessage().then((msg) => {
+      setJamMsg(msg);
+      setJamMsgLoading(false);
+    });
+  }, []);
 
   const { data: vendors = [], isLoading } = useQuery({
     queryKey: ["vendors"],
@@ -210,25 +230,25 @@ export default function HomeScreen() {
       )}
 
       <ScrollView showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="automatic" style={styles.scroll}>
-        {jamDetected ? (
-          <View style={styles.jamBanner}>
-            <View style={styles.jamBannerLeft}>
-              <Text style={styles.jamEmoji}>🚦</Text>
-              <View style={styles.jamBannerText}>
-                <Text style={styles.jamBannerTitle}>Jam detected near you!</Text>
-                <Text style={styles.jamBannerSub}>Order now — delivery in under 7 min</Text>
-              </View>
+        <View style={styles.jamBanner}>
+          <View style={styles.jamBannerLeft}>
+            <Text style={styles.jamEmoji}>🚦</Text>
+            <View style={styles.jamBannerText}>
+              <Text style={styles.jamBannerTitle}>Jam detected near you!</Text>
+              {jamMsgLoading ? (
+                <ShimmerText width={180} />
+              ) : (
+                <Text style={styles.jamBannerSub}>{jamMsg}</Text>
+              )}
             </View>
-            <TouchableOpacity style={styles.jamOrderBtn} onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}>
-              <Text style={styles.jamOrderBtnText}>Order</Text>
-            </TouchableOpacity>
           </View>
-        ) : (
-          <View style={styles.noJamBanner}>
-            <Clock size={20} color={C.orange} />
-            <Text style={styles.noJamText}>Schedule order for your next commute</Text>
-          </View>
-        )}
+          <TouchableOpacity
+            style={styles.jamOrderBtn}
+            onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}
+          >
+            <Text style={styles.jamOrderBtnText}>Order</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.locationCard}>
           <MapPin size={16} color={C.orange} />
@@ -243,20 +263,28 @@ export default function HomeScreen() {
 
         <Text style={styles.sectionTitle}>Categories</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesRow}>
-          {CATEGORIES.map((cat) => (
-            <CategoryPill
-              key={cat.id}
-              id={cat.id}
-              label={cat.label}
-              selected={selectedCategory === cat.id}
-              onPress={() => { Haptics.selectionAsync(); setSelectedCategory(cat.id); }}
-            />
-          ))}
+          {CATEGORIES.map((cat) => {
+            const selected = selectedCategory === cat.id;
+            const iconColor = selected ? "#FFF" : C.orange;
+            return (
+              <TouchableOpacity
+                key={cat.id}
+                style={[styles.categoryPill, selected && styles.categoryPillSelected]}
+                onPress={() => { Haptics.selectionAsync(); setSelectedCategory(cat.id); }}
+                activeOpacity={0.7}
+              >
+                <CategoryIcon id={cat.id} color={iconColor} />
+                <Text style={[styles.categoryLabel, selected && styles.categoryLabelSelected]}>
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
         <View style={styles.vendorsHeader}>
           <Text style={styles.sectionTitle}>Vendors Nearby</Text>
-          <Text style={styles.vendorCount}>{filtered.filter(v => v.isOpen).length} open</Text>
+          <Text style={styles.vendorCount}>{filtered.filter((v) => v.isOpen).length} open</Text>
         </View>
 
         {isLoading ? (
@@ -313,13 +341,11 @@ const styles = StyleSheet.create({
   jamBanner: { marginHorizontal: 16, marginTop: 4, marginBottom: 12, borderRadius: 16, backgroundColor: C.orange, padding: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   jamBannerLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
   jamEmoji: { fontSize: 28 },
-  jamBannerText: { flex: 1 },
+  jamBannerText: { flex: 1, gap: 4 },
   jamBannerTitle: { fontFamily: "Poppins_600SemiBold", fontSize: 15, color: "#FFF" },
-  jamBannerSub: { fontFamily: "Poppins_400Regular", fontSize: 12, color: "rgba(255,255,255,0.85)", marginTop: 2 },
+  jamBannerSub: { fontFamily: "Poppins_400Regular", fontSize: 12, color: "rgba(255,255,255,0.9)" },
   jamOrderBtn: { backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.5)" },
   jamOrderBtnText: { fontFamily: "Poppins_600SemiBold", fontSize: 13, color: "#FFF" },
-  noJamBanner: { marginHorizontal: 16, marginTop: 4, marginBottom: 12, borderRadius: 12, backgroundColor: "#FFF7ED", padding: 12, flexDirection: "row", alignItems: "center", gap: 10 },
-  noJamText: { fontFamily: "Poppins_500Medium", fontSize: 13, color: C.orange },
   locationCard: { marginHorizontal: 16, marginBottom: 16, borderRadius: 12, backgroundColor: C.backgroundSecondary, padding: 12, flexDirection: "row", alignItems: "center", gap: 10 },
   locationText: { flex: 1 },
   locationTitle: { fontFamily: "Poppins_400Regular", fontSize: 11, color: C.textSecondary },
