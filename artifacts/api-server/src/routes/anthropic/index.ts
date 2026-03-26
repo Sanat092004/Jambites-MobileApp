@@ -137,7 +137,7 @@ router.post("/anthropic/conversations/:id/messages", async (req, res) => {
     let fullResponse = "";
 
     const stream = anthropic.messages.stream({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 300,
       system: JAMMY_SYSTEM_PROMPT,
       messages: chatMessages,
@@ -173,7 +173,7 @@ router.post("/anthropic/conversations/:id/messages", async (req, res) => {
 router.get("/anthropic/jam-message", async (req, res) => {
   try {
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 60,
       messages: [{
         role: "user",
@@ -197,7 +197,7 @@ router.post("/anthropic/menu-recommendations", async (req, res) => {
     }
     const itemList = items.map((i) => `${i.name} (₹${i.price}, ${i.category})`).join(", ");
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 200,
       messages: [{
         role: "user",
