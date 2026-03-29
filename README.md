@@ -1,11 +1,11 @@
-🍔 Jambites — Food Delivery During Traffic Jams
+## 🍔 Jambites — Food Delivery During Traffic Jams
 
 Jambites is a system designed to deliver snacks, beverages, and essential medicines directly to users stuck in traffic.
 The goal is to turn idle time in traffic into a convenient ordering experience.
 
 This repository contains the backend system and core platform logic built using a TypeScript monorepo architecture. The mobile app interface is under development within this same repository.
 
-🧩 Problem Statement
+## 🧩 Problem Statement
 
 Urban traffic congestion leads to:
 
@@ -17,200 +17,340 @@ Poor utilization of vendor reach during peak hours
 
 Jambites addresses this by enabling location-based ordering during traffic conditions.
 
-🏗️ System Architecture
 
-This project is structured as a pnpm workspace monorepo:
+## 📁 Project Structure
 
+```text
 Jambites-MobileApp/
 ├── artifacts/
 │   ├── api-server/           # Express backend API
-│   └── mockup-sandbox/       # UI prototypes (WIP)
+│   └── mockup-sandbox/       # UI prototypes (work in progress)
+│
 ├── lib/
-│   ├── db/                   # Database schema (Drizzle ORM)
+│   ├── db/                   # Database schema and configuration (Drizzle ORM)
 │   ├── api-spec/             # OpenAPI specification
-│   ├── api-client-react/     # Generated API client
-│   ├── api-zod/              # Validation schemas
+│   ├── api-client-react/     # Auto-generated API client (React Query)
+│   ├── api-zod/              # Zod validation schemas
 │   └── integrations/
-│       └── anthropic-ai/     # AI chatbot integration
-├── scripts/
-├── tsconfig files
-└── pnpm workspace config
-🛠️ Tech Stack
-Layer	Technology
-Backend	Node.js + Express 5
-Language	TypeScript
-Database	PostgreSQL + Drizzle ORM
-Validation	Zod
-API Spec	OpenAPI 3.1 + Orval
-AI	Anthropic Claude API
-Build Tool	esbuild
-Package Manager	pnpm
-⚙️ Core Features (Implemented)
-✅ Backend API (Phase 1)
+│       └── anthropic-ai/     # Claude AI chatbot integration
+│
+├── scripts/                  # Utility and automation scripts
+│
+├── tsconfig.base.json        # Shared TypeScript configuration
+├── tsconfig.json             # Root TypeScript configuration
+└── pnpm-workspace.yaml       # Workspace configuration
+```
+## 🛠️ Tech Stack
 
-Express-based REST API
+### Backend
+- Node.js  
+- Express 5  
+- TypeScript  
 
-Health check endpoint (/api/health)
+### Database
+- PostgreSQL  
+- Drizzle ORM  
 
-Modular route structure
+### API Layer
+- OpenAPI 3.1  
+- Orval (code generation)  
+- React Query (API client)  
+- Zod (validation)  
 
-Type-safe schema validation using Zod
+### AI
+- Anthropic Claude API  
 
-✅ Database Layer
+### Tooling & Infra
+- pnpm (monorepo workspace)  
+- esbuild  
+- Replit (deployment)  
+## ⚙️ Core Features
 
-PostgreSQL integration
+### ✅ Implemented (Phase 1)
 
-Schema management via Drizzle ORM
+#### Backend API
+- Express-based REST API architecture  
+- Modular routing structure  
+- Health check endpoint (`/api/health`)  
 
-✅ API Contract System
+#### Database Layer
+- PostgreSQL integration  
+- Schema management using Drizzle ORM  
 
-OpenAPI specification
+#### API Contract System
+- OpenAPI 3.1 specification  
+- Auto-generated API client (React Query)  
+- Shared validation using Zod  
 
-Auto-generated API client (React Query)
+#### AI Chatbot (Jammy)
+- Claude-powered chatbot integration  
+- Handles basic user queries  
+- Context-aware responses using prompt injection (order state, time, simulated traffic)  
 
-Shared schema validation
+#### Jam Simulation
+- Time-based traffic simulation:
+  - Morning: 8–10 AM  
+  - Evening: 6–8 PM  
 
-✅ AI Chatbot (Jammy)
+---
 
-Claude-powered chatbot
+### 🔄 In Progress (Phase 2)
 
-Handles:
+#### Ordering System
+- Vendor discovery (location-based)  
+- Menu retrieval  
+- Order placement and tracking  
 
-Basic query responses
+#### Authentication
+- Phone-based OTP login system  
 
-Order-related context prompts
+#### Real-Time Features
+- Live order status updates  
+- Rider tracking (basic implementation)  
 
-Menu suggestions (prompt-based)
+---
 
-Note: AI is currently prompt-driven and does not include persistent memory or advanced reasoning.
+### 🧪 Planned (Future Scope)
 
-✅ Jam Simulation
-
-Time-based heuristic to simulate traffic conditions:
-
-Morning: 8–10 AM
-
-Evening: 6–8 PM
-
-🚧 Work in Progress
+- Payment integration (Razorpay)  
+- Real-time communication via WebSockets  
+- Improved traffic detection (data-driven)  
+**🚧 Work in Progress**
 🔄 Mobile App Interface
 
 UI currently in development within mockup-sandbox
 
 No production-ready mobile build yet
 
-🧪 Example System Flow
+## 🧪 Example System Flow
 1. User location is captured
 2. System checks for traffic (simulated)
 3. Nearby vendors are fetched
 4. User selects items from menu
 5. Order is placed via API
 6. Order status can be tracked
-🔌 API Endpoints
-Method	Endpoint	Status
-GET	/api/health	✅ Implemented
-GET	/api/vendors/nearby	🔄 Planned
-GET	/api/vendors/:id/menu	🔄 Planned
-POST	/api/orders	🔄 Planned
-GET	/api/orders/:id/status	🔄 Planned
-POST	/api/auth/otp/send	🔄 Planned
-⚙️ Setup & Installation
-Prerequisites
+## 🔌 API Endpoints
 
-Node.js (v18+ recommended)
+| Method | Endpoint                     | Description                     | Status                     |
+|--------|------------------------------|----------------------------------|----------------------------|
+| GET    | `/api/health`               | Health check                     | ✅ Implemented             |
+| GET    | `/api/vendors/nearby`       | Fetch nearby vendors             | ✅ Implemented (Mock Data) |
+| GET    | `/api/vendors/:id/menu`     | Get vendor menu                  | ✅ Implemented (Mock Data) |
+| POST   | `/api/orders`               | Place a new order                | 🔄 In Progress             |
+| GET    | `/api/orders/:id/status`    | Get order status + tracking      | ✅ Implemented (Mock Data) |
+| GET    | `/api/user/orders/history`  | Fetch user order history         | ✅ Implemented (Mock Data) |
+| POST   | `/api/promo/validate`       | Validate promo codes             | ✅ Implemented (Mock Data) |
+| GET    | `/api/traffic/jam-check`    | Check traffic/jam condition      | ✅ Implemented             |
+| POST   | `/api/auth/otp/send`        | Send OTP to user phone           | 🔄 Planned                 |
+| POST   | `/api/auth/otp/verify`      | Verify OTP and return JWT        | 🔄 Planned                 |
+> ⚠️ Note: Some endpoints currently return mock data for development and testing purposes. Integration with live database and real-time services is in progress.
 
-pnpm
+## ⚙️ Setup & Installation
 
-PostgreSQL database
+### 📌 Prerequisites
+Make sure you have the following installed:
 
-1. Clone the repository
+- Node.js (v18 or higher recommended)
+- pnpm (workspace package manager)
+- PostgreSQL database
+
+Install pnpm globally if not already installed:
+```bash
+npm install -g pnpm
+```
+
+---
+
+### 📥 1. Clone the Repository
+```bash
 git clone https://github.com/Sanat092004/Jambites-MobileApp.git
 cd Jambites-MobileApp
-2. Install dependencies
+```
+
+---
+
+### 📦 2. Install Dependencies
+```bash
 pnpm install
-3. Configure environment variables
+```
 
-Create a .env file:
+> ⚠️ This project uses **pnpm workspaces**. Do not use `npm` or `yarn`.
 
-DATABASE_URL=your_postgres_url
-ANTHROPIC_API_KEY=your_api_key
+---
+
+### 🔐 3. Configure Environment Variables
+Create a `.env` file in the root directory:
+
+```env
+DATABASE_URL=your_postgresql_connection_string
+ANTHROPIC_API_KEY=your_claude_api_key
 PORT=3000
-4. Setup database
+```
+
+---
+
+### 🗄️ 4. Setup Database
+Push the schema to your database:
+
+```bash
 pnpm --filter @workspace/db run push
-5. Start development server
+```
+
+---
+
+### ▶️ 5. Start Development Server
+```bash
 pnpm --filter @workspace/api-server run dev
-6. Test API
+```
+
+Server will run at:
+```
+http://localhost:3000/api
+```
+
+---
+
+### ✅ 6. Verify Setup
+
+Test the API using curl:
+
+```bash
 curl http://localhost:3000/api/health
-📦 Key Modules
-api-server
+```
 
-Handles routing, middleware, and API endpoints.
+Expected response:
+```json
+{
+  "status": "ok"
+}
+```
 
-lib/db
+---
 
-Database schema and connection.
+## ⚠️ Notes
 
-lib/api-spec
+- Some endpoints currently use **mock data**
+- Mobile app interface is still under development
+- Ensure PostgreSQL is running before starting the server
+## 📦 Key Modules
 
-Defines API contracts and generates clients.
+### 🧩 `artifacts/api-server`
+Main backend service built using Express.
 
-lib/api-zod
+- Handles API routing and middleware  
+- Entry point for all backend operations  
+- Exposes REST endpoints under `/api`  
 
-Runtime validation schemas.
+---
 
-anthropic-ai
+### 🗄️ `lib/db`
+Database layer using Drizzle ORM.
 
-Integration layer for chatbot functionality.
+- Defines schema models  
+- Manages PostgreSQL connection  
+- Handles schema migrations and updates  
 
-🗺️ Roadmap
-Phase 1 (Completed)
+---
 
-Backend setup
+### 📜 `lib/api-spec`
+API contract definition layer.
 
-Database integration
+- Contains OpenAPI 3.1 specification  
+- Drives API structure and consistency  
+- Used for automatic client generation  
 
-API structure
+---
 
-Basic AI chatbot
+### 🔗 `lib/api-client-react`
+Frontend API client (auto-generated).
 
-Phase 2 (In Progress)
+- React Query hooks for API calls  
+- Type-safe communication with backend  
+- Generated from OpenAPI spec  
 
-Vendor & menu APIs
+---
 
-Order placement system
+### ✅ `lib/api-zod`
+Validation layer.
 
-Authentication (OTP-based)
+- Zod schemas generated from API spec  
+- Ensures request/response validation  
+- Used across backend services  
 
-Basic order tracking
+---
 
-Phase 3 (Planned — Subject to Scope)
+### 🤖 `lib/integrations/anthropic-ai`
+AI integration module.
 
-Traffic prediction models
+- Handles interaction with Claude API  
+- Provides chatbot functionality (Jammy)  
+- Injects runtime context into prompts  
 
-Smart dispatch system
+---
 
-Dynamic pricing
+### 🛠️ `scripts`
+Utility scripts.
 
-⚠️ Current Limitations
+- Contains helper scripts for development tasks  
+- Used for automation and maintenance  
 
-Mobile app not fully implemented
+---
 
-Most business logic endpoints are in development
+## 🗺️ Roadmap
 
-Traffic detection is simulated, not real-time
+### ✅ Phase 1 (Completed)
+- Backend API setup  
+- Database integration  
+- API contract system (OpenAPI + codegen)  
+- Basic AI chatbot integration  
+- Health check endpoint  
 
-AI chatbot is prompt-based (no long-term memory)
+---
 
-🎯 Project Goal
+### 🔄 Phase 2 (In Progress)
+- Vendor and menu APIs (mock → real data)  
+- Order placement system  
+- Basic authentication (OTP-based)  
+- Order tracking functionality  
 
-This project focuses on:
+---
 
-Learning scalable backend architecture
+### 🧪 Phase 3 (Planned — Subject to Scope)
+- Data-driven traffic detection  
+- Smart dispatch system  
+- Dynamic pricing mechanisms  
 
-Building type-safe APIs
+---
 
-Integrating AI into real-world workflows
+## ⚠️ Current Limitations
 
-📄 License
+- Mobile app UI is still under development  
+- Several endpoints rely on mock data  
+- No real-time tracking (simulated responses)  
+- AI chatbot is prompt-based (no persistent memory)  
 
-MIT
+---
+
+## 🎯 Project Objective
+
+This project is focused on:
+
+- Designing scalable backend systems  
+- Building type-safe APIs using modern tooling  
+- Understanding real-world system architecture  
+- Exploring AI integration in applications  
+
+---
+
+## 🚀 Future Improvements
+
+- Replace mock data with live database integration  
+- Add payment gateway support  
+- Implement real-time communication (WebSockets)  
+- Improve AI responses with better context handling  
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License.
